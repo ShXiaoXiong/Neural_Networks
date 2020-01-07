@@ -27,7 +27,7 @@ class Neuralnetworks:
      
         pass
 
-    def calculation(self,inputs_list):
+    def query(self,inputs_list):
         #计算输出的过程 
         inputs=numpy.array(inputs_list,ndmin=2).T#传递列表，转换为二维数组，转置
         
@@ -39,11 +39,10 @@ class Neuralnetworks:
 
         return final_outputs#如果不写return，会返回一个None对象
 
-
     def train(self,inputs_list,targets_list):
         #反馈调节权重的过程/反向传播误差——告知如何优化权重
         
-        #完全相同的计算
+        #完全相同的计算，因此在循环中要重写
         inputs=numpy.array(inputs_list,ndmin=2).T#传递列表，转换为二维数组，转置
         
         hidden_inputs=numpy.dot(self.ihw,inputs)#点乘
@@ -77,26 +76,32 @@ data_file.close()
 scoreboard=[]
 accuracies=[]
 #训练并对比
-epoch=3#增加世代
+epoch=2#增加世代
 for e in range(epoch):
-    for record in data_list[1:10000]:
+    for record in data_list[1:1000]:
+        #######收敛数据
         all_values=record.split(',')#指定分隔符‘，’，对字符串进行切片，返回一个列表   
-
         inputs=(numpy.asfarray(all_values[1:])/255.0 *0.99)+0.01#将输入值进行了预先处理：收敛：将输入值收缩到(0,1)之间。asfarray转换为浮点型数组
     
-        #调用函数计算
-        network_outputs=n.calculation(inputs)#输出一个10个值的数组
+
+        #计算过程
+        inputs=numpy.array(inputs,ndmin=2).T#传递列表，转换为二维数组，转置
+
+        hidden_inputs=numpy.dot(n.ihw,inputs)#点乘
+        hidden_outputs=n.activation_function(hidden_inputs)#使用激活函数
+
+        final_inputs=numpy.dot(n.how,hidden_outputs)#点乘
+        final_outputs=n.activation_function(final_inputs)#使用激活函数
+
 
         #对比
-        networks_label=numpy.argmax(network_outputs)#取出最大值对应的索引值
+        networks_label=numpy.argmax(final_outputs)#取出最大值对应的索引值
         correct_label=int(all_values[0])#答案是第一个值
-    
         #记录结果1
         if networks_label==correct_label:
             scoreboard.append(1)
         else:
             scoreboard.append(0)
-    
         #记录结果2
         accuracy= sum(scoreboard)/len(scoreboard)
         accuracies.append(accuracy)
@@ -105,9 +110,19 @@ for e in range(epoch):
         targets=numpy.zeros(10)+0.01 
         targets[int(all_values[0])]=0.99
 
-        #调用函数训练
+        #训练过程
    
-        n.train(inputs,targets)
+        targets=numpy.array(targets,ndmin=2).T#传递列表，转换为二维数组
+        
+        output_errors=targets-final_outputs#计算误差
+
+        #隐藏层误差
+        hidden_errors=numpy.dot(n.how.T,output_errors)#点乘
+        #反向传递，更新how权重
+        n.how += n.lr * numpy.dot((output_errors * final_outputs* (1-final_outputs)),numpy.transpose(hidden_outputs))#点乘
+        #反向传递，更新ihw权重
+        n.ihw += n.lr * numpy.dot((hidden_errors * hidden_outputs* (1-hidden_outputs)),numpy.transpose(inputs))#点乘
+        pass
 
 
 #最终结果可视化        
